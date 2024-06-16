@@ -7,6 +7,7 @@
 
 import UIKit
 import FirebaseAuth
+import GoogleSignIn
 
 class LoginViewController: UIViewController {
     
@@ -56,9 +57,19 @@ class LoginViewController: UIViewController {
         
     }()
     
+    private let googleLogInButton = GIDSignInButton()
+    
+    private var loginObserver: NSObjectProtocol?
+    
     
     override func viewDidLoad() {
         super.viewDidLoad()
+        
+        
+        loginObserver = NotificationCenter.default.addObserver(forName: .didLogInNotification, object: nil, queue: .main) { [weak self] _ in
+            guard let self = self else { return }
+            self.navigationController?.dismiss(animated: true)
+        }
         
         
         title = "Login"
@@ -70,6 +81,9 @@ class LoginViewController: UIViewController {
                                                             action: #selector(didTapRegister))
         
         loginButton.addTarget(self, action: #selector(loginButtonTapped), for: .touchUpInside)
+        googleLogInButton.addTarget(self, action: #selector(googleLoginButtonTapped), for: .touchUpInside)
+
+
         
         setupViews()
         setupDelegate()
@@ -96,6 +110,10 @@ class LoginViewController: UIViewController {
                                   y: passwordField.botton + 10,
                                   width: scrollView.width-60,
                                  height: 52)
+        googleLogInButton.frame = CGRect(x: 30,
+                                  y: loginButton.botton + 10,
+                                  width: scrollView.width-60,
+                                 height: 52)
     
     }
     
@@ -107,12 +125,23 @@ class LoginViewController: UIViewController {
         scrollView.addSubview(emailField)
         scrollView.addSubview(passwordField)
         scrollView.addSubview(loginButton)
+        scrollView.addSubview(googleLogInButton)
         
     }
+    
+    deinit {
+        if let observer = loginObserver {
+            NotificationCenter.default.removeObserver(observer)
+        }
+    }
+    
+    
+    
     func setupDelegate() {
         emailField.delegate = self
         passwordField.delegate = self
     }
+    
     
     @objc private func didTapRegister() {
         
@@ -160,6 +189,44 @@ class LoginViewController: UIViewController {
         
     }
     
+
+    @objc private func googleLoginButtonTapped() {
+          
+          GIDSignIn.sharedInstance.signIn(withPresenting: self) { result, error in
+              guard error == nil else {
+                  print("Error signing in with Google: \(error!.localizedDescription)")
+                  return
+              }
+              
+              guard let result = result else {
+                  print("Google sign-in result not available")
+                  return
+              }
+              
+              let user = result.user
+              let idToken = user.idToken?.tokenString
+              let accessToken = user.accessToken.tokenString
+              
+              guard let idToken = idToken else {
+                  print("Google ID token or access token not available")
+                  return
+              }
+              
+              let credential = GoogleAuthProvider.credential(withIDToken: idToken, accessToken: accessToken)
+              
+              Auth.auth().signIn(with: credential) { authResult, error in
+                  if let error = error {
+                      print("Firebase sign-in with Google credential failed: \(error)")
+                      return
+                  }
+                  
+                  guard let user = authResult?.user else { return }
+                  print("Logged In User: \(user)")
+                  NotificationCenter.default.post(name: .didLogInNotification, object: nil)
+                //  self.navigationController?.dismiss(animated: true, completion: nil)
+              }
+          }
+      }
 }
 extension LoginViewController: UITextFieldDelegate {
     // MARK: - этот метод отвечает за то что будет происходить после нажатия enter в текстовом поле.
