@@ -8,8 +8,11 @@
 import UIKit
 import FirebaseAuth
 import GoogleSignIn
+import JGProgressHUD
 
 class LoginViewController: UIViewController {
+    
+    private let spinner = JGProgressHUD(style: .dark)
     
     private let scrollView: UIScrollView = {
         let scrollView = UIScrollView()
@@ -46,7 +49,7 @@ class LoginViewController: UIViewController {
     private let loginButton: UIButton = {
         let button = UIButton()
         button.setTitle("Log In", for: .normal)
-        button.backgroundColor = .link
+        button.backgroundColor = .systemCyan
         button.setTitleColor(.white, for: .normal)
         button.layer.cornerRadius = 12
         button.layer.masksToBounds = true
@@ -160,10 +163,18 @@ class LoginViewController: UIViewController {
               alertUserLoginError()
               return
         }
+        
+        spinner.show(in: view)
+        
         //MARK: - Firebase login
         
         FirebaseAuth.Auth.auth().signIn(withEmail: email, password: password) {[weak self] authResult, error in
             guard let self = self else { return }
+            
+            DispatchQueue.main.async {
+                self.spinner.dismiss()
+            }
+            
             
             guard let result = authResult, error == nil else {
                 print("Failed to log in user with email: \(email)")

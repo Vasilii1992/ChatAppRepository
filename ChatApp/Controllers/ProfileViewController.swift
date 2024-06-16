@@ -13,6 +13,8 @@ class ProfileViewController: UIViewController {
   private let tableView: UITableView = {
         let tableView = UITableView()
         tableView.translatesAutoresizingMaskIntoConstraints = false
+        tableView.register(UITableViewCell.self, forCellReuseIdentifier: "cell")
+
         return tableView
     }()
     
@@ -34,7 +36,6 @@ class ProfileViewController: UIViewController {
     func setupDelegate() {
         tableView.delegate = self
         tableView.dataSource = self
-        tableView.register(UITableViewCell.self, forCellReuseIdentifier: "cell")
     }
     
     func setupViews() {
