@@ -45,13 +45,10 @@ final class MainTabBarController: UITabBarController {
 /*
  
  
- Ты IOS разработчик. У нас в приложении необходимо добавить функцию входа при помощи google акаунта,но проблема в том что при нажатии на кнопку,выдается вот такая ошибка " Error signing in with Google: The user canceled the sign-in flow.". Необходимо найти причину и исправить.
- Вот код, который отвечает за эту работу:
+ Ты IOS разработчик. У нас в приложении добавлена функция регистрации через google акаунт, но проблема в том что при входе в акаунт через Google данные не сохраняются в Realtime Database. Данные там сохраняются когда мы регистрируемся обычным способом.Нужно сделать так, чтобы при входе через Google у нас была такая же логика как в "registerButtonTapped".
  
  
- 
- You are an iOS developer. In our application, you need to add the login function using google account, but the problem is that when you click on the button, you get this error "Error signing in with Google: The user canceled the sign-in flow.". It is necessary to find the cause and fix it.
-  Here is the code that is responsible for this work:
+ You are an iOS developer. We have added the registration function via Google account in our application, but the problem is that when logging in to the account via Google, the data is not saved in the Realtime Database. The data is stored there when we register in the usual way.We need to make sure that when logging in via Google, we have the same logic as in "registerButtonTapped".
  
  import UIKit
  import Firebase
@@ -92,8 +89,308 @@ final class MainTabBarController: UITabBarController {
 
 
  }
+ class RegisterViewController: UIViewController {
+     
+     private let spinner = JGProgressHUD(style: .dark)
+
+     
+     private let scrollView: UIScrollView = {
+         let scrollView = UIScrollView()
+         scrollView.clipsToBounds = true
+       //  scrollView.isUserInteractionEnabled = true
+         return scrollView
+     }()
+     
+     private let imageView: UIImageView = {
+         let imageView = UIImageView()
+         imageView.image = UIImage(systemName: "person.circle")
+         imageView.tintColor = .systemGray4
+         imageView.contentMode = .scaleAspectFit
+         imageView.isUserInteractionEnabled = true
+         imageView.layer.masksToBounds = true
+         imageView.layer.borderWidth = 2
+         imageView.layer.borderColor = UIColor.lightGray.cgColor
+         
+         
+         return imageView
+     }()
+     
+     private let emailField: UITextField = {
+        let field = UITextField()
+         field.createTextField(holder: "Email Address...",
+                               isSecureText: false,
+                               returnKeyType: .continue)
+             
+         return field
+     }()
+     
+     private let firstNameField: UITextField = {
+        let field = UITextField()
+         field.createTextField(holder: "First Name...",
+                               isSecureText: false,
+                               returnKeyType: .continue)
+             
+         return field
+     }()
+     private let lastNameField: UITextField = {
+        let field = UITextField()
+         field.createTextField(holder: "Last Name...",
+                               isSecureText: false,
+                               returnKeyType: .continue)
+             
+         return field
+     }()
+     
+     
+     
+     private let passwordField: UITextField = {
+         let field = UITextField()
+         field.createTextField(holder: "Password...",
+                               isSecureText: true,
+                               returnKeyType: .done)
+         
+         return field
+     }()
+     
+     private let registerButton: UIButton = {
+         let button = UIButton()
+         button.setTitle("Register", for: .normal)
+         button.backgroundColor = .systemGreen
+         button.setTitleColor(.white, for: .normal)
+         button.layer.cornerRadius = 12
+         button.layer.masksToBounds = true
+         button.titleLabel?.font = .systemFont(ofSize: 20, weight: .bold)
+         
+         return button
+         
+         
+     }()
+     
+     
+     override func viewDidLoad() {
+         super.viewDidLoad()
+         
+         
+         title = "Register"
+         view.backgroundColor = .white
+
+         registerButton.addTarget(self, action: #selector(registerButtonTapped), for: .touchUpInside)
+         
+         setupViews()
+         setupDelegate()
+     }
+  
+     override func viewDidLayoutSubviews() {
+         super.viewDidLayoutSubviews()
+         scrollView.frame = view.bounds
+         let size = scrollView.width/3
+         imageView.frame = CGRect(x: (scrollView.width-size)/2,
+                                  y: 20,
+                                  width: size,
+                                  height: size)
+         imageView.layer.cornerRadius = imageView.width/2.0
+         
+         firstNameField.frame = CGRect(x: 30,
+                                   y: imageView.botton + 10,
+                                   width: scrollView.width-60,
+                                  height: 52)
+         lastNameField.frame = CGRect(x: 30,
+                                   y: firstNameField.botton + 10,
+                                   width: scrollView.width-60,
+                                  height: 52)
+         emailField.frame = CGRect(x: 30,
+                                   y: lastNameField.botton + 10,
+                                   width: scrollView.width-60,
+                                  height: 52)
+         passwordField.frame = CGRect(x: 30,
+                                   y: emailField.botton + 10,
+                                   width: scrollView.width-60,
+                                  height: 52)
+         registerButton.frame = CGRect(x: 30,
+                                   y: passwordField.botton + 10,
+                                   width: scrollView.width-60,
+                                  height: 52)
+     
+     }
+     
+     
+     
+     func setupViews() {
+         view.addSubview(scrollView)
+         scrollView.addSubview(imageView)
+         scrollView.addSubview(firstNameField)
+         scrollView.addSubview(lastNameField)
+         scrollView.addSubview(emailField)
+         scrollView.addSubview(passwordField)
+         scrollView.addSubview(registerButton)
+         
+         
+         let gesture = UITapGestureRecognizer(target: self,
+                                              action: #selector(didTapChangePrifilePic))
+         
+         
+         
+ //        gesture.numberOfTapsRequired = 1
+ //        gesture.numberOfTouchesRequired = 1
+         imageView.addGestureRecognizer(gesture)
+         
+     }
+     func setupDelegate() {
+         emailField.delegate = self
+         passwordField.delegate = self
+     }
+     
+     @objc private func didTapChangePrifilePic() {
+         presentPhotoActionSheet()
+     }
+     
+     @objc private func registerButtonTapped() {
+         
+         emailField.resignFirstResponder()
+         passwordField.resignFirstResponder()
+         firstNameField.resignFirstResponder()
+         lastNameField.resignFirstResponder()
+         
+         guard let email = emailField.text,
+               let password = passwordField.text,
+               let firstName = firstNameField.text,
+               let lastName = lastNameField.text,
+               !firstName.isEmpty,
+               !lastName.isEmpty,
+               !email.isEmpty,
+               !password.isEmpty,
+               password.count >= 6 else {
+               alertUserLoginError()
+               return
+         }
+         
+         spinner.show(in: view)
+
+         // Firebase login
+         
+         DatabaseManager.shared.userExists(with: email) { [weak self] exist in
+             guard let self = self else { return }
+             
+             DispatchQueue.main.async {
+                 self.spinner.dismiss()
+             }
+             
+             guard !exist else {
+                 //пользователь уже существует
+                 self.alertUserLoginError(message: "Looks like a user account for that email already exist.")
+                 return
+             }
+             FirebaseAuth.Auth.auth().createUser(withEmail: email, password: password) { authResult, error in
+                 guard authResult != nil, error == nil else {
+                    print("Error creating user")
+                     return
+                 }
+                 let chatUser = ChatAppUser(firstName: firstName,
+                                            lastName: lastName,
+                                            emailAddress: email)
+                 DatabaseManager.shared.insertUser(with: chatUser, completion: { sucsess in
+                     if sucsess {
+                         // upload image
+                     }
+                 })
+                 self.navigationController?.dismiss(animated: true, completion: nil)
+
+             }
+         }
+     }
+     
+     func alertUserLoginError(message: String = "default error") {
+         let alert = UIAlertController(title: "Woops",
+                                       message: message,
+                                       preferredStyle: .alert)
+         alert.addAction(UIAlertAction(title: "Dismiss", style: .cancel, handler: nil))
+         
+         
+         present(alert, animated: true)
+         
+     }
+     
+ }
+ extension RegisterViewController: UITextFieldDelegate {
+     // MARK: - этот метод отвечает за то что будет происходить после нажатия enter в текстовом поле.
+     func textFieldShouldReturn(_ textField: UITextField) -> Bool {
+         
+         if textField == emailField {
+             passwordField.becomeFirstResponder()
+         }
+         else if textField == passwordField {
+             registerButtonTapped()
+         }
+         
+         
+         
+         return true
+     }
+ }
+ extension RegisterViewController: UIImagePickerControllerDelegate,UINavigationControllerDelegate {
+     
+     func presentPhotoActionSheet() {
+         let actionSheet = UIAlertController(title: "Profile Picture",
+                                             message: "How would you like to select a picture?",
+                                             preferredStyle: .actionSheet)
+         
+         actionSheet.addAction(UIAlertAction(title: "Cancel",
+                                             style: .cancel,
+                                             handler: nil))
+         
+         actionSheet.addAction(UIAlertAction(title: "Take Photo",
+                                             style: .default,
+                                             handler: { [weak self] _ in
+             self?.presentCamera()
+             
+         }))
+         
+         actionSheet.addAction(UIAlertAction(title: "Chose Photo",
+                                             style: .default,
+                                             handler: { [weak self] _ in
+             self?.presentPhotoPicker()
+             
+         }))
+         
+         present(actionSheet, animated: true)
+     }
+     
+     func presentCamera() {
+         let vc = UIImagePickerController()
+         vc.sourceType = .camera
+         vc.delegate = self
+         vc.allowsEditing = true
+         present(vc, animated: true)
+     }
+     
+     func presentPhotoPicker() {
+         let vc = UIImagePickerController()
+         vc.sourceType = .photoLibrary
+         vc.delegate = self
+         vc.allowsEditing = true
+         present(vc, animated: true)
+         
+     }
+     
+     func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey : Any]) {
+         picker.dismiss(animated: true, completion: nil)
+         // фото которое мы выбираем в альбоме
+         guard let selectedImage = info[UIImagePickerController.InfoKey.editedImage] as? UIImage else { return }
+
+         self.imageView.image = selectedImage
+     
+     }
+     
+     func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
+         
+         picker.dismiss(animated: true, completion: nil)
+         
+     }
+ }
 
  class LoginViewController: UIViewController {
+     
+     private let spinner = JGProgressHUD(style: .dark)
      
      private let scrollView: UIScrollView = {
          let scrollView = UIScrollView()
@@ -130,7 +427,7 @@ final class MainTabBarController: UITabBarController {
      private let loginButton: UIButton = {
          let button = UIButton()
          button.setTitle("Log In", for: .normal)
-         button.backgroundColor = .link
+         button.backgroundColor = .systemCyan
          button.setTitleColor(.white, for: .normal)
          button.layer.cornerRadius = 12
          button.layer.masksToBounds = true
@@ -143,9 +440,18 @@ final class MainTabBarController: UITabBarController {
      
      private let googleLogInButton = GIDSignInButton()
      
+     private var loginObserver: NSObjectProtocol?
+     
      
      override func viewDidLoad() {
          super.viewDidLoad()
+         
+         
+         loginObserver = NotificationCenter.default.addObserver(forName: .didLogInNotification, object: nil, queue: .main) { [weak self] _ in
+             guard let self = self else { return }
+             self.navigationController?.dismiss(animated: true)
+         }
+         
          
          title = "Login"
          view.backgroundColor = .white
@@ -203,6 +509,15 @@ final class MainTabBarController: UITabBarController {
          scrollView.addSubview(googleLogInButton)
          
      }
+     
+     deinit {
+         if let observer = loginObserver {
+             NotificationCenter.default.removeObserver(observer)
+         }
+     }
+     
+     
+     
      func setupDelegate() {
          emailField.delegate = self
          passwordField.delegate = self
@@ -226,10 +541,18 @@ final class MainTabBarController: UITabBarController {
                alertUserLoginError()
                return
          }
+         
+         spinner.show(in: view)
+         
          //MARK: - Firebase login
          
          FirebaseAuth.Auth.auth().signIn(withEmail: email, password: password) {[weak self] authResult, error in
              guard let self = self else { return }
+             
+             DispatchQueue.main.async {
+                 self.spinner.dismiss()
+             }
+             
              
              guard let result = authResult, error == nil else {
                  print("Failed to log in user with email: \(email)")
@@ -255,46 +578,50 @@ final class MainTabBarController: UITabBarController {
          
      }
      
-     @objc private func googleLoginButtonTapped() {
-         guard let presentingViewController = self.presentingViewController else { return }
-         
-         GIDSignIn.sharedInstance.signIn(withPresenting: presentingViewController) { result, error in
-             guard error == nil else {
-                 print("Error signing in with Google: \(error!.localizedDescription)")
-                 return
-             }
-             
-             guard let result = result else {
-                 print("Google sign-in result not available")
-                 return
-             }
-             
-             let user = result.user
-             let idToken = user.idToken?.tokenString
-             let accessToken = user.accessToken.tokenString
-             
-             guard let idToken = idToken else {
-                 print("Google ID token or access token not available")
-                 return
-             }
-             
-             let credential = GoogleAuthProvider.credential(withIDToken: idToken,
-                                                            accessToken: accessToken)
-             
-             Auth.auth().signIn(with: credential) { authResult, error in
-                 if let error = error {
-                     print("Firebase sign-in with Google credential failed: \(error)")
-                     return
-                 }
-                 
-                 // User is signed in
-                 guard let user = authResult?.user else { return }
-                 print("Logged In User: \(user)")
-                 self.navigationController?.dismiss(animated: true, completion: nil)
-             }
-         }
-     }
 
+     @objc private func googleLoginButtonTapped() {
+         // тут нужно сделать такую же логику как в registerButtonTapped()
+           
+           GIDSignIn.sharedInstance.signIn(withPresenting: self) { result, error in
+               guard error == nil else {
+                   print("Error signing in with Google: \(error!.localizedDescription)")
+                   return
+               }
+               
+               
+               guard let result = result else {
+                   print("Google sign-in result not available")
+                   return
+               }
+               
+               let user = result.user
+               let idToken = user.idToken?.tokenString
+               let accessToken = user.accessToken.tokenString
+               
+               guard let idToken = idToken else {
+                   print("Google ID token or access token not available")
+                   return
+               }
+               
+               let credential = GoogleAuthProvider.credential(withIDToken: idToken, accessToken: accessToken)
+               
+               Auth.auth().signIn(with: credential) { authResult, error in
+                   if let error = error {
+                       print("Firebase sign-in with Google credential failed: \(error)")
+                       return
+                   }
+                   
+                   guard let user = authResult?.user else { return }
+                   print("Logged In User: \(user)")
+                   NotificationCenter.default.post(name: .didLogInNotification, object: nil)
+
+                   
+                   
+                   
+
+               }
+           }
+       }
  }
  extension LoginViewController: UITextFieldDelegate {
      // MARK: - этот метод отвечает за то что будет происходить после нажатия enter в текстовом поле.
@@ -316,8 +643,5 @@ final class MainTabBarController: UITabBarController {
  }
 
 
- 
- 
- 
  
  */

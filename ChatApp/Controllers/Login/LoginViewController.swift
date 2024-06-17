@@ -181,6 +181,9 @@ class LoginViewController: UIViewController {
                 return
             }
             let user = result.user
+            
+            UserDefaults.standard.set(email, forKey: "email")
+            
             print("Logged In User: \(user)")
             self.navigationController?.dismiss(animated: true, completion: nil)
             
@@ -200,44 +203,80 @@ class LoginViewController: UIViewController {
         
     }
     
-
     @objc private func googleLoginButtonTapped() {
-          
-          GIDSignIn.sharedInstance.signIn(withPresenting: self) { result, error in
-              guard error == nil else {
-                  print("Error signing in with Google: \(error!.localizedDescription)")
-                  return
-              }
-              
-              guard let result = result else {
-                  print("Google sign-in result not available")
-                  return
-              }
-              
-              let user = result.user
-              let idToken = user.idToken?.tokenString
-              let accessToken = user.accessToken.tokenString
-              
-              guard let idToken = idToken else {
-                  print("Google ID token or access token not available")
-                  return
-              }
-              
-              let credential = GoogleAuthProvider.credential(withIDToken: idToken, accessToken: accessToken)
-              
-              Auth.auth().signIn(with: credential) { authResult, error in
-                  if let error = error {
-                      print("Firebase sign-in with Google credential failed: \(error)")
-                      return
-                  }
-                  
-                  guard let user = authResult?.user else { return }
-                  print("Logged In User: \(user)")
-                  NotificationCenter.default.post(name: .didLogInNotification, object: nil)
-                //  self.navigationController?.dismiss(animated: true, completion: nil)
-              }
-          }
-      }
+        GIDSignIn.sharedInstance.signIn(withPresenting: self) { result, error in
+            guard error == nil else {
+                print("Error signing in with Google: \(error!.localizedDescription)")
+                return
+            }
+            
+            guard let result = result else {
+                print("Google sign-in result not available")
+                return
+            }
+            
+            let user = result.user
+            let idToken = user.idToken?.tokenString
+            let accessToken = user.accessToken.tokenString
+            
+            guard let idToken = idToken else {
+                print("Google ID token or access token not available")
+                return
+            }
+            
+            let credential = GoogleAuthProvider.credential(withIDToken: idToken, accessToken: accessToken)
+            
+            Auth.auth().signIn(with: credential) { [weak self] authResult, error in
+                guard let self = self else { return }
+                if let error = error {
+                    print("Firebase sign-in with Google credential failed: \(error)")
+                    return
+                }
+                
+                guard let user = authResult?.user else { return }
+                print("Logged In User: \(user)")
+
+                let email = user.email ?? ""
+                let firstName = result.user.profile?.givenName ?? ""
+                let lastName = result.user.profile?.familyName ?? ""
+                
+                UserDefaults.standard.set(email, forKey: "email")
+
+                
+                DatabaseManager.shared.userExists(with: email) { exist in
+                    if !exist {
+                        let chatUser = ChatAppUser(firstName: firstName,
+                                                   lastName: lastName,
+                                                   emailAddress: email)
+                        DatabaseManager.shared.insertUser(with: chatUser, completion: { success in
+                            if success {
+                                // upload image
+                                if ((result.user.profile?.hasImage) != nil) {
+                                    guard let url = result.user.profile?.imageURL(withDimension: 200) else { return }
+                                    URLSession.shared.dataTask(with: url) { data, _, _ in
+                                        guard let data = data else { return }
+                                        let fileName = chatUser.profilePictureFileName
+                                        StorageManager.shaed.uploadProfilePicture(with: data, fileName: fileName) { result in
+                                            switch result {
+                                            case .success(let downloadUrl):
+                                                UserDefaults.standard.set(downloadUrl, forKey: "profile_picture_url")
+                                                print(downloadUrl)
+                                            case .failure(let error):
+                                                print("Storage manager error: \(error)")
+                                            }
+                                        }
+                                    }.resume()
+                                }
+                            }
+                        })
+                    }
+                    NotificationCenter.default.post(name: .didLogInNotification, object: nil)
+                    self.navigationController?.dismiss(animated: true, completion: nil)
+                }
+            }
+        }
+    }
+
 }
 extension LoginViewController: UITextFieldDelegate {
     // MARK: - этот метод отвечает за то что будет происходить после нажатия enter в текстовом поле.

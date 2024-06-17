@@ -93,12 +93,7 @@ class RegisterViewController: UIViewController {
         
         title = "Register"
         view.backgroundColor = .white
-        
-//        navigationItem.rightBarButtonItem = UIBarButtonItem(title: "Register",
-//                                                            style: .done,
-//                                                            target: self,
-//                                                            action: #selector(didTapRegister))
-        
+
         registerButton.addTarget(self, action: #selector(registerButtonTapped), for: .touchUpInside)
         
         setupViews()
@@ -169,14 +164,6 @@ class RegisterViewController: UIViewController {
         presentPhotoActionSheet()
     }
     
-    
-//    @objc private func didTapRegister() {
-//        
-//    let vc = RegisterViewController()
-//        vc.title = "Create Account"
-//        navigationController?.pushViewController(vc, animated: true)
-//    }
-    
     @objc private func registerButtonTapped() {
         
         emailField.resignFirstResponder()
@@ -208,7 +195,6 @@ class RegisterViewController: UIViewController {
                 self.spinner.dismiss()
             }
             
-            
             guard !exist else {
                 //пользователь уже существует
                 self.alertUserLoginError(message: "Looks like a user account for that email already exist.")
@@ -219,10 +205,34 @@ class RegisterViewController: UIViewController {
                    print("Error creating user")
                     return
                 }
+                let chatUser = ChatAppUser(firstName: firstName,
+                                           lastName: lastName,
+                                           emailAddress: email)
+                DatabaseManager.shared.insertUser(with: chatUser, completion: { sucsess in
+                    if sucsess {
+                        // upload image
+                        
+                        guard let image = self.imageView.image,
+                              let data = image.pngData() else {
+                            return
+                        }
+                        
+                        let fileName = chatUser.profilePictureFileName
+                        StorageManager.shaed.uploadProfilePicture(with: data, fileName: fileName) { result in
+                            switch result {
+                            case .success(let downloadUrl):
+                                UserDefaults.standard.set(downloadUrl, forKey: "profile_picture_url")
+                                print(downloadUrl)
+                            case .failure(let error):
+                                print("Storage manager error: \(error)")
+                            }
+                            
+                        }
+                        
+                    }
+                })
+             //   UserDefaults.standard.set(email, forKey: "email")
 
-                DatabaseManager.shared.insertUser(with: ChatAppUser(firstName: firstName,
-                                                                    lastName: lastName,
-                                                                    emailAddress: email))
                 self.navigationController?.dismiss(animated: true, completion: nil)
 
             }
