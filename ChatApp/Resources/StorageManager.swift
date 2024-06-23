@@ -46,6 +46,33 @@ class StorageManager {
         case failedToUpload
         case failedToDownloadUrl
     }
+    // upload image that will be sent in a conversation message
+    public func uploadMessagePhoto(with data: Data,fileName: String,
+                                     complition: @escaping UploadPictureComplition) {
+        
+        storage.child("message_images/\(fileName)").putData(data) { [weak self] metadata, error in
+            guard let self = self else { return }
+            guard error == nil else {
+                print("failed to upload data to firebase for picture")
+                complition(.failure(StorageErrors.failedToUpload))
+                return
+            }
+            
+            self.storage.child("message_images/\(fileName)").downloadURL { url, error in
+                guard let url = url else {
+                  print("Failed to get download url")
+                    complition(.failure(StorageErrors.failedToDownloadUrl))
+                    
+                return
+                }
+                let urlString = url.absoluteString
+                
+                print("download url returned: \(urlString)")
+                complition(.success(urlString))
+                
+            }
+        }
+    }
     
     
     
@@ -60,8 +87,6 @@ class StorageManager {
             }
             completion(.success(url))
         }
-        
-        
-        
+
     }
 }
