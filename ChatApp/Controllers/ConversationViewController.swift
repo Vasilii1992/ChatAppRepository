@@ -68,7 +68,7 @@ class ConversationViewController: UIViewController {
         tableView.frame = view.bounds
     }
     
-    
+    private var loginObserver: NSObjectProtocol?
 
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
@@ -79,10 +79,20 @@ class ConversationViewController: UIViewController {
         fetchConversations()
         startListeningForConversations()
         
+        loginObserver = NotificationCenter.default.addObserver(forName: .didLogInNotification, object: nil, queue: .main) { [weak self] _ in
+            guard let self = self else { return }
+            self.startListeningForConversations()
+        }
+        
     }
     
     private func startListeningForConversations() {
         guard let email = UserDefaults.standard.value(forKey: "email") as? String else { return }
+        
+        if let observer = loginObserver {
+            NotificationCenter.default.removeObserver(observer)
+        }
+        
         
         let safeEmail = DatabaseManager.safeEmail(emailAddress: email)
         DatabaseManager.shared.getAllConversations(for: safeEmail) {[weak self] result in
@@ -157,14 +167,37 @@ class ConversationViewController: UIViewController {
 
 extension ConversationViewController: UITableViewDelegate {
     
-    
-    
 }
 
 extension ConversationViewController: UITableViewDataSource {
     
     func tableView(_ tableView: UITableView, heightForRowAt indexPath: IndexPath) -> CGFloat {
         return 120
+    }
+    
+    
+    func tableView(_ tableView: UITableView, editingStyleForRowAt indexPath: IndexPath) -> UITableViewCell.EditingStyle {
+        return .delete
+    }
+    
+  func tableView(_ tableView: UITableView, commit editingStyle: UITableViewCell.EditingStyle, forRowAt indexPath: IndexPath) {
+      if editingStyle == .delete {
+          // begin delete
+          let conversationId = conversations[indexPath.row].id
+          tableView.beginUpdates()
+          
+          DatabaseManager.shared.deleteConversation(conversationId: conversationId) { [weak self] succses in
+              
+              if succses {
+                  self?.conversations.remove(at: indexPath.row)
+                 tableView.deleteRows(at: [indexPath], with: .left)
+              }
+              
+          }
+
+          
+          tableView.endUpdates()
+      }
     }
     
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
