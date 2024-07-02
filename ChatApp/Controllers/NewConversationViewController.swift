@@ -53,7 +53,7 @@ class NewConversationViewController: UIViewController {
         super.viewDidLoad()
         setupViews()
         searchBar.delegate = self
-        view.backgroundColor = .white
+        view.backgroundColor = .systemBackground
         
         navigationController?.navigationBar.topItem?.titleView = searchBar
         navigationItem.rightBarButtonItem = UIBarButtonItem(title: "Cancel",

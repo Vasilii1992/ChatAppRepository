@@ -8,12 +8,25 @@
 import UIKit
 import FirebaseAuth
 import GoogleSignIn
+import SDWebImage
+
+enum ProfileViewModelType {
+    case info, logout
+}
+
+struct ProfileViewModel {
+    let viewModelType: ProfileViewModelType
+    let title: String
+    let handler: (() -> Void)?
+}
+
+
 class ProfileViewController: UIViewController {
     
   private let tableView: UITableView = {
         let tableView = UITableView()
         tableView.translatesAutoresizingMaskIntoConstraints = false
-        tableView.register(UITableViewCell.self, forCellReuseIdentifier: "cell")
+      tableView.register(ProfileTableViewCell.self, forCellReuseIdentifier: ProfileTableViewCell.identifire)
 
         return tableView
     }()
@@ -45,12 +58,11 @@ class ProfileViewController: UIViewController {
         headerView.addSubview(imageView)
 
         
-        StorageManager.shaed.downloadUrl(for: path) {[weak self] result in
-            guard let self = self else { return }
+        StorageManager.shaed.downloadUrl(for: path) { result in
             switch result {
                 
             case .success(let url):
-                self.downloadImage(imageView: imageView, url: url)
+                imageView.sd_setImage(with: url)
             case .failure(let error):
                 print("Failed to get download url: \(error)")
             }
@@ -60,20 +72,52 @@ class ProfileViewController: UIViewController {
         
     }
     
-    func downloadImage(imageView: UIImageView, url: URL) {
-        URLSession.shared.dataTask(with: url) { data, _, error in
-            guard let data = data, error == nil else { return }
-            DispatchQueue.main.async {
-                let image = UIImage(data: data)
-                imageView.image = image
-            }
-        }.resume()
-    }
+
     
-    let data = ["Log Out"]
+    var data = [ProfileViewModel]()
     
     override func viewDidLoad() {
         super.viewDidLoad()
+        
+        data.append(ProfileViewModel(viewModelType: .info,
+                                     title: "Name: \(UserDefaults.standard.value(forKey: "name") as? String ?? "No Name")",
+                                     handler: nil))
+        data.append(ProfileViewModel(viewModelType: .info,
+                                     title: "Email: \(UserDefaults.standard.value(forKey: "email") as? String ?? "No Email")",
+                                     handler: nil))
+        data.append(ProfileViewModel(viewModelType: .logout,
+                                     title: "Log Out",
+                                     handler: { [weak self] in
+            guard let self = self else { return }
+            let actionSheet = UIAlertController(title: "Log Out",
+                                          message: "Do you want to get out?",
+                                          preferredStyle: .actionSheet)
+            actionSheet.addAction(UIAlertAction(title: "Log Out",
+                                          style: .destructive,
+                                                handler: { [weak self] _ in
+                guard let self = self else { return }
+                
+                // Google log out
+                GIDSignIn.sharedInstance.signOut()
+                
+                do {
+                    try FirebaseAuth.Auth.auth().signOut()
+                   // возвращаемся на экран логина
+                    let vc = LoginViewController()
+                    let nav = UINavigationController(rootViewController: vc)
+                    nav.modalPresentationStyle = .fullScreen
+                    self.present(nav, animated: true)
+                }
+                catch {
+                   print("Failed to log out")
+                }
+            }))
+            actionSheet.addAction(UIAlertAction(title: "Cancel", style: .cancel))
+            
+            present(actionSheet,animated: true)
+            
+        }))
+        
         view.backgroundColor = .white
         title = "Profile"
         // большой тайтл
@@ -119,49 +163,17 @@ extension ProfileViewController: UITableViewDataSource {
     }
     
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        
-        let cell = tableView.dequeueReusableCell(withIdentifier: "cell", for: indexPath)
-        cell.textLabel?.text = data[indexPath.row]
-        cell.textLabel?.textAlignment = .center
-        cell.textLabel?.textColor = .red
+        let viewModel = data[indexPath.row]
+      let cell = tableView.dequeueReusableCell(withIdentifier: ProfileTableViewCell.identifire, for: indexPath) as! ProfileTableViewCell
+        cell.setUp(with: viewModel)
         return cell
     }
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         //отмена выделения строки
         tableView.deselectRow(at: indexPath, animated: true)
-        
-        let actionSheet = UIAlertController(title: "Log Out",
-                                      message: "Do you want to get out?",
-                                      preferredStyle: .actionSheet)
-        actionSheet.addAction(UIAlertAction(title: "Log Out",
-                                      style: .destructive,
-                                            handler: { [weak self] _ in
-            guard let self = self else { return }
-            
-            // Google log out
-            GIDSignIn.sharedInstance.signOut()
-            
-            do {
-                try FirebaseAuth.Auth.auth().signOut()
-               // возвращаемся на экран логина
-                let vc = LoginViewController()
-                let nav = UINavigationController(rootViewController: vc)
-                nav.modalPresentationStyle = .fullScreen
-                self.present(nav, animated: true)
-            }
-            catch {
-               print("Failed to log out")
-            }
-        }))
-        actionSheet.addAction(UIAlertAction(title: "Cancel", style: .cancel))
-        
-        present(actionSheet,animated: true)
-        // пытаемся выйти из системы
+        data[indexPath.row].handler?()
 
     }
-    
-    
-    
+  
 }
-
 

@@ -11,6 +11,7 @@ import InputBarAccessoryView
 import SDWebImage
 import AVFoundation
 import AVKit
+import CoreLocation
 
 struct Message: MessageType {
    public var sender: any MessageKit.SenderType
@@ -58,6 +59,14 @@ struct Media: MediaItem {
     var image: UIImage?
     var placeholderImage: UIImage
     var size: CGSize
+}
+
+struct Location: LocationItem {
+    var location: CLLocation
+    
+    var size: CGSize
+    
+    
 }
 
 class ChatViewController: MessagesViewController {
@@ -150,6 +159,11 @@ class ChatViewController: MessagesViewController {
                                             handler: { [weak self] _ in
             
         }))
+        actionSheet.addAction(UIAlertAction(title: "Location",
+                                            style: .default,
+                                            handler: { [weak self] _ in
+            self?.presentLocationPicker()
+        }))
         
         actionSheet.addAction(UIAlertAction(title: "Cancel",
                                             style: .cancel))
@@ -157,6 +171,54 @@ class ChatViewController: MessagesViewController {
         present(actionSheet, animated: true)
         
         
+    }
+    
+    private func presentLocationPicker() {
+        let vc = LocationPickerViewController(coordinates: nil)
+        vc.title = "Pick Location"
+        vc.navigationItem.largeTitleDisplayMode = .never
+        vc.completion = { [weak self] selectedCoordinates in
+            
+            guard let self = self else { return }
+            
+            guard let messageId = self.createMessageId(),
+                  let conversationId = self.conversationId,
+                  let selfSender = self.selfSender,
+                  let name = self.title
+            else {
+                return
+            }
+            
+            
+            
+            let longitude: Double = selectedCoordinates.longitude
+            let latitude: Double = selectedCoordinates.latitude
+            
+            print("long = \(longitude) | latitude = \(latitude)")
+            
+            let location = Location(location: CLLocation(latitude: latitude, longitude: longitude),
+                                 size: .zero)
+            let message = Message(sender: selfSender,
+                                  messageId: messageId,
+                                  sentDate: Date(),
+                                  kind: .location(location))
+            
+            DatabaseManager.shared.sendMessage(to: conversationId,
+                                               otherUserEmail: self.otherUserEmail,
+                                               name: name,
+                                               newMessage: message) { succsess in
+                
+                if succsess {
+                    print("sent location message")
+                }
+                else {
+                    print("failed to send location message")
+                }
+            }
+            
+            
+        }
+        navigationController?.pushViewController(vc, animated: true)
     }
     
     private func presentVideoInputActionSheet() {
@@ -486,6 +548,25 @@ extension ChatViewController: MessagesDataSource,MessagesLayoutDelegate,Messages
 }
 
 extension ChatViewController: MessageCellDelegate {
+    
+    func didTapMessage(in cell: MessageCollectionViewCell) {
+        guard let indexPath = messagesCollectionView.indexPath(for: cell) else { return }
+        
+        
+        let message = messages[indexPath.section]
+        
+        switch message.kind {
+        case .location(let locationData):
+            let coordinates = locationData.location.coordinate
+            let vc = LocationPickerViewController(coordinates: coordinates)
+            vc.title = "Location"
+            self.navigationController?.pushViewController(vc, animated: true)
+            
+            
+        default:
+            break
+        }
+    }
     
     func didTapImage(in cell: MessageCollectionViewCell) {
         guard let indexPath = messagesCollectionView.indexPath(for: cell) else { return }

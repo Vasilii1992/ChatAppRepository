@@ -17,7 +17,6 @@ class RegisterViewController: UIViewController {
     private let scrollView: UIScrollView = {
         let scrollView = UIScrollView()
         scrollView.clipsToBounds = true
-      //  scrollView.isUserInteractionEnabled = true
         return scrollView
     }()
     
@@ -92,7 +91,7 @@ class RegisterViewController: UIViewController {
         
         
         title = "Register"
-        view.backgroundColor = .white
+        view.backgroundColor = .systemBackground
 
         registerButton.addTarget(self, action: #selector(registerButtonTapped), for: .touchUpInside)
         
