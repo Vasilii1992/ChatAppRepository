@@ -10,17 +10,6 @@ import FirebaseAuth
 import GoogleSignIn
 import SDWebImage
 
-enum ProfileViewModelType {
-    case info, logout
-}
-
-struct ProfileViewModel {
-    let viewModelType: ProfileViewModelType
-    let title: String
-    let handler: (() -> Void)?
-}
-
-
 class ProfileViewController: UIViewController {
     
   private let tableView: UITableView = {
@@ -96,6 +85,10 @@ class ProfileViewController: UIViewController {
                                           style: .destructive,
                                                 handler: { [weak self] _ in
                 guard let self = self else { return }
+                
+                UserDefaults.standard.setValue(nil, forKey: "email")
+                UserDefaults.standard.setValue(nil, forKey: "name")
+
                 
                 // Google log out
                 GIDSignIn.sharedInstance.signOut()

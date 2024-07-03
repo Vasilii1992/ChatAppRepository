@@ -8,12 +8,6 @@
 import UIKit
 import JGProgressHUD
 
-struct SearchResult {
-    
-    let name: String
-    let email: String
-}
-
 class NewConversationViewController: UIViewController {
     
     public var completion: ((SearchResult) -> (Void))?

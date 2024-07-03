@@ -13,63 +13,12 @@ import AVFoundation
 import AVKit
 import CoreLocation
 
-struct Message: MessageType {
-   public var sender: any MessageKit.SenderType
-   public var messageId: String
-   public var sentDate: Date
-   public var kind: MessageKit.MessageKind
-}
 
-extension MessageKind {
-    var messageKindString: String {
-        switch self {
-            
-        case .text(_):
-            return "text"
-        case .attributedText(_):
-            return "attributed_text"
-        case .photo(_):
-            return "photo"
-        case .video(_):
-            return "video"
-        case .location(_):
-            return "location"
-        case .emoji(_):
-            return "emoji"
-        case .audio(_):
-            return "audio"
-        case .contact(_):
-            return "contact"
-        case .linkPreview(_):
-            return "linkPreview"
-        case .custom(_):
-            return "custom"
-        }
-    }
-}
-
-struct Sender: SenderType {
-  public var photoURL: String
-  public var senderId: String
-  public var displayName: String
-}
-
-struct Media: MediaItem {
-    var url: URL?
-    var image: UIImage?
-    var placeholderImage: UIImage
-    var size: CGSize
-}
-
-struct Location: LocationItem {
-    var location: CLLocation
+final class ChatViewController: MessagesViewController {
     
-    var size: CGSize
-    
-    
-}
+    private var senderPhotoURL: URL?
+    private var otherUserPhotoURL: URL?
 
-class ChatViewController: MessagesViewController {
     
     public static let dateFormatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -81,7 +30,7 @@ class ChatViewController: MessagesViewController {
     }()
     
     public let otherUserEmail: String
-    private let conversationId: String?
+    private var conversationId: String?
     public var isNewConversation = false
         
     
@@ -156,7 +105,7 @@ class ChatViewController: MessagesViewController {
         
         actionSheet.addAction(UIAlertAction(title: "Audio",
                                             style: .default,
-                                            handler: { [weak self] _ in
+                                            handler: {  _ in
             
         }))
         actionSheet.addAction(UIAlertAction(title: "Location",
@@ -445,15 +394,9 @@ extension ChatViewController: UIImagePickerControllerDelegate,UINavigationContro
                 }
                 
             }
-            
-    
-         
         }
     }
 }
-
-
-
 
 
 extension ChatViewController: InputBarAccessoryViewDelegate {
@@ -479,6 +422,11 @@ extension ChatViewController: InputBarAccessoryViewDelegate {
                 if sucsess {
                     print("message sent")
                     self?.isNewConversation = false
+                    
+                    let newConversationId = "conversation_\(message.messageId)"
+                    self?.conversationId = newConversationId
+                    self?.listenForMessages(id: newConversationId, shouldScrollToBotton: true)
+                    self?.messageInputBar.inputTextView.text = nil
                 }
                 else {
                     print("failed of send")
@@ -489,8 +437,9 @@ extension ChatViewController: InputBarAccessoryViewDelegate {
             // append to existing conversation data
             guard let conversationId = conversationId,
             let name = self.title else { return }
-            DatabaseManager.shared.sendMessage(to: conversationId, otherUserEmail: otherUserEmail, name: name, newMessage: message) { success in
+            DatabaseManager.shared.sendMessage(to: conversationId, otherUserEmail: otherUserEmail, name: name, newMessage: message) { [weak self] success in
                 if success {
+                    self?.messageInputBar.inputTextView.text = nil
                     print("Сообщение отправлено")
                 }
                 else {
@@ -545,7 +494,70 @@ extension ChatViewController: MessagesDataSource,MessagesLayoutDelegate,Messages
             break
         }
     }
-}
+    
+    func backgroundColor(for message: any MessageType, at indexPath: IndexPath, in messagesCollectionView: MessagesCollectionView) -> UIColor {
+        let sender = message.sender
+        if sender.senderId == selfSender?.senderId {
+            return .link
+        }
+        
+        return .secondarySystemBackground
+    }
+    
+    func configureAvatarView(_ avatarView: AvatarView, for message: any MessageType, at indexPath: IndexPath, in messagesCollectionView: MessagesCollectionView) {
+        let sender = message.sender
+        if sender.senderId == selfSender?.senderId {
+            if let currentUserImage = self.senderPhotoURL {
+                avatarView.sd_setImage(with: currentUserImage)
+            }
+            else {
+                // fetch url
+                guard let email = UserDefaults.standard.value(forKey: "email") as? String else { return }
+                let safeEmail = DatabaseManager.safeEmail(emailAddress: email)
+                let path = "images/\(safeEmail)_profile_picture.png"
+                StorageManager.shaed.downloadUrl(for: path) { [weak self] result in
+                    switch result {
+                        
+                    case .success(let url):
+                        self?.senderPhotoURL = url
+                        DispatchQueue.main.async {
+                            avatarView.sd_setImage(with: url)
+                            
+                        }
+                    case .failure(let error):
+                        print("\(error)")
+                    }
+                }
+            }
+        }
+        else {
+            
+            // other user image
+            if let otherUserPhotoURL = self.otherUserPhotoURL {
+                avatarView.sd_setImage(with: otherUserPhotoURL)
+            }
+                else {
+                    // fetch url
+                    let email = self.otherUserEmail
+                    let safeEmail = DatabaseManager.safeEmail(emailAddress: email)
+                    let path = "images/\(safeEmail)_profile_picture.png"
+                    StorageManager.shaed.downloadUrl(for: path) { [weak self] result in
+                        switch result {
+                            
+                        case .success(let url):
+                            self?.otherUserPhotoURL = url
+                            DispatchQueue.main.async {
+                                avatarView.sd_setImage(with: url)
+                                
+                            }
+                        case .failure(let error):
+                            print("\(error)")
+                        }
+                    }
+                }
+            }
+        }
+    }
 
 extension ChatViewController: MessageCellDelegate {
     
@@ -560,6 +572,7 @@ extension ChatViewController: MessageCellDelegate {
             let coordinates = locationData.location.coordinate
             let vc = LocationPickerViewController(coordinates: coordinates)
             vc.title = "Location"
+            
             self.navigationController?.pushViewController(vc, animated: true)
             
             
